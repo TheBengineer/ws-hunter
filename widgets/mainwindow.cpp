@@ -997,6 +997,43 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (m_messageClient, &MessageClient::switch_configuration, m_multi_settings, &MultiSettings::select_configuration);
   connect (m_messageClient, &MessageClient::configure, this, &MainWindow::remote_configure);
 
+  // Station-control requests from a UDP controller (types 19-26, see
+  // NetworkMessage.hpp). Each goes through the same widget the operator
+  // would use, then sends Status so the controller sees the result.
+  connect (m_messageClient, &MessageClient::set_tx_period, [this] (bool tx_first) {
+      ui->txFirstCheckBox->setChecked (tx_first);
+      statusUpdate ();
+    });
+  connect (m_messageClient, &MessageClient::set_dial_frequency, [this] (Frequency frequency) {
+      if (frequency < 135700u || frequency > 250000000000ULL)
+        {
+          qDebug () << "Ignoring UDP dial frequency outside supported range:" << frequency;
+          return;
+        }
+      if (!m_transmitting) monitor (true);
+      setRig (frequency);
+      setXIT (ui->TxFreqSpinBox->value ());
+      statusUpdate ();
+    });
+  connect (m_messageClient, &MessageClient::set_tx_df, [this] (quint32 tx_df) {
+      // never shift a transmission part way through
+      if (m_transmitting || tx_df < 200 || tx_df > 4000)
+        {
+          qDebug () << "Ignoring UDP Tx DF:" << tx_df << "transmitting:" << m_transmitting;
+          return;
+        }
+      ui->TxFreqSpinBox->setValue (tx_df);
+      statusUpdate ();
+    });
+  connect (m_messageClient, &MessageClient::set_hold_tx_freq, [this] (bool hold) {
+      ui->cbHoldTxFreq->setChecked (hold);
+      on_cbHoldTxFreq_clicked (hold);  // setChecked() does not emit clicked()
+      statusUpdate ();
+    });
+  connect (m_messageClient, &MessageClient::set_tx_enabled, [this] (bool enabled) {
+      auto_tx_mode (enabled);           // calls statusUpdate()
+    });
+
   // Hook up WSPR band hopping
   connect (ui->band_hopping_schedule_push_button, &QPushButton::clicked
            , &m_WSPR_band_hopping, &WSPRBandHopping::show_dialog);

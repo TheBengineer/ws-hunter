@@ -576,6 +576,54 @@
  *      bytes. Unknown trailing fields are ignored.
  *
  *      Unknown types are ignored; schema number unchanged.
+ *
+ *
+ * Station-control extensions (ws-hunter)
+ * --------------------------------------
+ *
+ *      Types 19-23 keep the numbering and payloads of the F4NJU
+ *      FT8-AutoPilot "AP1" build so a controller can drive either build.
+ *      19 and 20 are implemented here; 21-23 (AP1 TX audio attenuation)
+ *      are reserved and ignored. Types from 24 are ws-hunter's own.
+ *
+ *      All of these are inbound only, require Accept UDP requests, and are
+ *      acted on only when the Id field exactly matches this instance's Id.
+ *      Truncated messages are ignored.
+ *
+ * SetTxPeriod    In       19
+ *                         Id (target unique key) utf8
+ *                         Tx First               bool
+ *
+ *      Checks or unchecks "Tx even/1st", choosing which T/R period
+ *      transmissions use.
+ *
+ * SetDialFrequency In     20
+ *                         Id (target unique key) utf8
+ *                         Frequency (Hz)         quint64
+ *
+ *      Sets the rig dial frequency, 135700 Hz to 250 GHz.
+ *
+ * SetTxDF        In       24
+ *                         Id (target unique key) utf8
+ *                         Tx DF (Hz)             quint32
+ *
+ *      Sets the Tx audio offset, 200-4000 Hz. Ignored while transmitting
+ *      so a transmission never shifts part way through. The new offset is
+ *      reported in the next Status message.
+ *
+ * SetHoldTxFreq  In       25
+ *                         Id (target unique key) utf8
+ *                         Hold                   bool
+ *
+ *      Checks or unchecks "Hold Tx Freq". When checked, a Reply does not
+ *      move the Tx offset onto the station being answered.
+ *
+ * SetTxEnabled   In       26
+ *                         Id (target unique key) utf8
+ *                         Enabled                bool
+ *
+ *      Equivalent to clicking "Enable Tx" on or off. The state is reported
+ *      as Tx Enabled in the next Status message.
  */
 
 #include <QDataStream>
@@ -610,12 +658,22 @@ namespace NetworkMessage
       AnnotationInfo,
       InhibitStatus = 17,
       TxInhibit = 18,
+      SetTxPeriod = 19,         // In 19 — AP1-compatible
+      SetDialFrequency = 20,    // In 20 — AP1-compatible
+      ReservedAP1_21 = 21,      // AP1 SetTxAudioAttenuation; ignored
+      ReservedAP1_22 = 22,      // AP1 QueryTxAudioAttenuation; ignored
+      ReservedAP1_23 = 23,      // AP1 TxAudioAttenuationState; never sent
+      SetTxDF = 24,             // In 24 — ws-hunter
+      SetHoldTxFreq = 25,       // In 25 — ws-hunter
+      SetTxEnabled = 26,        // In 26 — ws-hunter
       maximum_message_type_     // ONLY add new message types
                                 // immediately before here
     };
 
   static_assert (InhibitStatus == 17, "TX-inhibit protocol type must remain 17");
   static_assert (TxInhibit == 18, "TX-inhibit command type must remain 18");
+  static_assert (SetTxPeriod == 19, "AP1-compatible types must remain 19-23");
+  static_assert (SetTxDF == 24, "ws-hunter control types must remain 24-26");
 
   quint32 constexpr pulse {15}; // seconds
 

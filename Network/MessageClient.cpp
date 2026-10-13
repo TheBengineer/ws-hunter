@@ -126,6 +126,17 @@ public:
   void heartbeat ();
   void closedown ();
   StreamStatus check_status (QDataStream const&) const;
+  // station-control requests act only when complete and addressed to us
+  bool control_for_us (NetworkMessage::Reader const& in) const
+  {
+    if (OK != check_status (in)) return false;
+    if (in.id () != id_)
+      {
+        TRACE_UDP ("ignoring control type:" << in.type () << "for id:" << in.id ());
+        return false;
+      }
+    return true;
+  }
   void send_message (QByteArray const&, bool queue_if_pending = true, bool allow_duplicates = false);
   void send_message (QDataStream const& out, QByteArray const& message, bool queue_if_pending = true, bool allow_duplicates = false)
   {
@@ -523,6 +534,51 @@ void MessageClient::impl::parse_message (QByteArray const& msg)
               }
             }
             break;
+
+            case NetworkMessage::SetTxPeriod:
+              {
+                bool tx_first {false};
+                in >> tx_first;
+                TRACE_UDP ("SetTxPeriod tx first:" << tx_first);
+                if (control_for_us (in)) Q_EMIT self_->set_tx_period (tx_first);
+              }
+              break;
+
+            case NetworkMessage::SetDialFrequency:
+              {
+                quint64 frequency {0};
+                in >> frequency;
+                TRACE_UDP ("SetDialFrequency frequency:" << frequency);
+                if (control_for_us (in)) Q_EMIT self_->set_dial_frequency (frequency);
+              }
+              break;
+
+            case NetworkMessage::SetTxDF:
+              {
+                quint32 tx_df {0};
+                in >> tx_df;
+                TRACE_UDP ("SetTxDF tx df:" << tx_df);
+                if (control_for_us (in)) Q_EMIT self_->set_tx_df (tx_df);
+              }
+              break;
+
+            case NetworkMessage::SetHoldTxFreq:
+              {
+                bool hold {false};
+                in >> hold;
+                TRACE_UDP ("SetHoldTxFreq hold:" << hold);
+                if (control_for_us (in)) Q_EMIT self_->set_hold_tx_freq (hold);
+              }
+              break;
+
+            case NetworkMessage::SetTxEnabled:
+              {
+                bool enabled {false};
+                in >> enabled;
+                TRACE_UDP ("SetTxEnabled enabled:" << enabled);
+                if (control_for_us (in)) Q_EMIT self_->set_tx_enabled (enabled);
+              }
+              break;
 
             default:
               // Ignore
