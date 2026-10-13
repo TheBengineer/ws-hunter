@@ -13,7 +13,10 @@ set -euo pipefail
 SRC=$(cd "$(dirname "$0")" && pwd)
 PREFIX=${1:-$HOME/ws-hunter-app}
 BUILD=$SRC/build-hunter
-JOBS=$(nproc)
+# mainwindow.cpp alone can take ~2 GB to compile, so below 6 GB of RAM
+# build one file at a time. Override with JOBS=n.
+mem_mb=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
+JOBS=${JOBS:-$([ "$mem_mb" -lt 6000 ] && echo 1 || nproc)}
 
 SUPER_URL="https://sourceforge.net/projects/wsjt-x-improved/files/WS_v3.2.0/Source%20code/ws-3.2.0_260924.tgz/download"
 SUPER_MD5=93069373277c7976eebbc4ec644bf79b
