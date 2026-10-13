@@ -40,9 +40,10 @@ if [ ! -f hamlib/lib/libhamlib.a ]; then
   (cd "$HAMLIB" && patch -p1 -N < ../superbuild/hamlib.patch \
      && ./configure --prefix="$BUILD/hamlib" --disable-shared --enable-static \
           --without-cxx-binding \
-          "CFLAGS=-g -O2 -fPIC -fdata-sections -ffunction-sections" \
+          "CFLAGS=-O2 -fPIC -fdata-sections -ffunction-sections" \
           "LDFLAGS=-Wl,--gc-sections" \
      && make -j"$JOBS" && make install-strip)
+  rm -rf superbuild "$HAMLIB"   # only the installed library is needed
 fi
 
 # 3. WS from this tree
