@@ -144,6 +144,14 @@ public:
   // this signal is emitted if the server has sent information about a callsign
   Q_SIGNAL void annotation_info (QString const& dx_call, bool sort_order_provided, quint32 sort_order);
 
+  // station-control requests (types 19-26); the target Id has already
+  // been matched against ours
+  Q_SIGNAL void set_tx_period (bool tx_first);
+  Q_SIGNAL void set_dial_frequency (Frequency);
+  Q_SIGNAL void set_tx_df (quint32 tx_df);
+  Q_SIGNAL void set_hold_tx_freq (bool hold);
+  Q_SIGNAL void set_tx_enabled (bool enabled);
+
   // this signal is emitted when network errors occur or if a host
   // lookup fails
   Q_SIGNAL void error (QString const&) const;
