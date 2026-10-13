@@ -809,6 +809,12 @@ private:
   enum {CALL, GRID, DXCC, MULT};
 
   int			m_ihsym;
+  // per-period Rx spectrum for the UDP SpectrumSummary message
+  QVector<double> m_specSum;       // summed power per summary bin
+  QVector<int>    m_specCount;     // spectrum points summed per bin
+  int             m_specLastIhsym {0};
+  qint64          m_specPeriodStart {-1};  // ms since epoch, -1 = none
+  bool            m_specTx {false};        // transmitted during the period
   int			m_nzap;
   int			m_npts8;
   float		m_px;
@@ -1095,6 +1101,7 @@ private:
   bool subProcessFailed (QProcess *, int exit_code, QProcess::ExitStatus);
   void subProcessError (QProcess *, QProcess::ProcessError);
   void statusUpdate () const;
+  void spectrumSummarySink (float const s[]);
   void update_watchdog_label ();
   void invalidate_frequencies_filter ();
   void on_the_minute ();

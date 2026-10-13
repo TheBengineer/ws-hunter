@@ -102,6 +102,11 @@ public:
                               , quint32 expiries, quint32 invalid
                               , qint64 t_rx_ns, qint64 t_pin_ns);
 
+  // average Rx spectrum of one completed T/R period (type 27)
+  Q_SLOT void spectrum_summary (QTime period_start, quint32 tr_period_ms, quint32 start_hz
+                                , quint32 bin_hz, float floor_db, float step_db
+                                , QByteArray const& levels);
+
   // this signal is emitted if the server has requested a decode
   // window clear action
   Q_SIGNAL void clear_decodes (quint8 window);

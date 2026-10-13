@@ -838,6 +838,21 @@ void MessageClient::inhibit_status (bool supported, bool inhibited
                              t_rx_ns, t_pin_ns);
 }
 
+void MessageClient::spectrum_summary (QTime period_start, quint32 tr_period_ms, quint32 start_hz
+                                      , quint32 bin_hz, float floor_db, float step_db
+                                      , QByteArray const& levels)
+{
+  if (m_->enabled_ && m_->server_port_ && !m_->server_.isNull ())
+    {
+      QByteArray message;
+      NetworkMessage::Builder out {&message, NetworkMessage::SpectrumSummary, m_->id_, m_->schema_};
+      out << period_start << tr_period_ms << start_hz << bin_hz << floor_db << step_db << levels;
+      TRACE_UDP ("period start:" << period_start << "T/R period:" << tr_period_ms << "start:" << start_hz
+                 << "bin:" << bin_hz << "floor:" << floor_db << "step:" << step_db << "bins:" << levels.size ());
+      m_->send_message (out, message);
+    }
+}
+
 void MessageClient::WSPR_decode (bool is_new, QTime time, qint32 snr, float delta_time, Frequency frequency
                                  , qint32 drift, QString const& callsign, QString const& grid, qint32 power
                                  , bool off_air)

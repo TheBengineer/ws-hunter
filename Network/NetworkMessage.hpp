@@ -624,6 +624,24 @@
  *
  *      Equivalent to clicking "Enable Tx" on or off. The state is reported
  *      as Tx Enabled in the next Status message.
+ *
+ * SpectrumSummary Out     27
+ *                         Id (unique key)        utf8
+ *                         Period start           QTime
+ *                         T/R period (ms)        quint32
+ *                         Start (Hz)             quint32
+ *                         Bin width (Hz)         quint32
+ *                         Floor (dB)             float (serialized as double)
+ *                         Step (dB)              float (serialized as double)
+ *                         Levels                 QByteArray (one quint8 per bin)
+ *
+ *      The average Rx audio spectrum over one complete T/R period, sent
+ *      after the period ends. Bin i covers Start + i * Bin width Hz and
+ *      its level is Floor + Levels[i] * Step dB, relative to the same
+ *      arbitrary reference as the waterfall. Sent only while Accept UDP
+ *      requests is checked, and never for a period in which this station
+ *      transmitted, so a controller sees what others put on the band
+ *      including signals too weak to decode.
  */
 
 #include <QDataStream>
@@ -666,6 +684,7 @@ namespace NetworkMessage
       SetTxDF = 24,             // In 24 — ws-hunter
       SetHoldTxFreq = 25,       // In 25 — ws-hunter
       SetTxEnabled = 26,        // In 26 — ws-hunter
+      SpectrumSummary = 27,     // Out 27 — ws-hunter
       maximum_message_type_     // ONLY add new message types
                                 // immediately before here
     };

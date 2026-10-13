@@ -2704,6 +2704,7 @@ void MainWindow::dataSink(qint64 frames)
   if(m_monitoring || m_diskData) {
     m_wideGraph->dataSink2(s,m_df3,m_ihsym,m_diskData,m_px);
   }
+  spectrumSummarySink(s);
   if(m_mode=="MSK144") return;
   if(m_mode=="JTTY") {
     if(m_ihsym >= m_hsymStop and (m_saveAll or m_saveDecoded)) {
@@ -15791,6 +15792,63 @@ void MainWindow::statusUpdate () const
                                   static_cast<quint8> (m_specOp),
                                   ftol, tr_period, m_multi_settings->configuration_name (),
                                   m_currentMessage, getTransmittedSymbols ());
+}
+
+// Average the Rx spectrum over each T/R period and send it as a UDP
+// SpectrumSummary once the period ends (see NetworkMessage.hpp). A
+// period ends when the half-symbol counter m_ihsym starts over. Only
+// whole periods with no transmission from this station are sent.
+void MainWindow::spectrumSummarySink (float const s[])
+{
+  int constexpr bin_hz {10};
+  int constexpr top_hz {3000};
+  int constexpr nbins {top_hz / bin_hz};
+  float constexpr step_db {0.25f};
+
+  bool const restarted = m_ihsym <= m_specLastIhsym;
+  m_specLastIhsym = m_ihsym;
+  if (!m_config.accept_udp_requests () || m_diskData || !m_monitoring
+      || m_df3 <= 0 || m_TRperiod <= 0)
+    {
+      m_specPeriodStart = -1;
+      return;
+    }
+  if (restarted)
+    {
+      if (m_specPeriodStart >= 0 && !m_specTx)
+        {
+          QVector<float> db (nbins);
+          float floor_db {1.e6f};
+          for (int b = 0; b < nbins; ++b)
+            {
+              double const p = m_specCount[b] ? m_specSum[b] / m_specCount[b] : 0.;
+              db[b] = 10.f * std::log10 (std::max (p, 1.e-12));
+              floor_db = std::min (floor_db, db[b]);
+            }
+          QByteArray levels (nbins, 0);
+          for (int b = 0; b < nbins; ++b)
+            {
+              levels[b] = static_cast<char> (std::min (255, qRound ((db[b] - floor_db) / step_db)));
+            }
+          m_messageClient->spectrum_summary (QDateTime::fromMSecsSinceEpoch (m_specPeriodStart, Qt::UTC).time ()
+                                             , qRound (m_TRperiod * 1000.), 0, bin_hz
+                                             , floor_db, step_db, levels);
+        }
+      qint64 const period_ms = qRound64 (m_TRperiod * 1000.);
+      m_specPeriodStart = QDateTime::currentMSecsSinceEpoch () / period_ms * period_ms;
+      m_specSum.fill (0., nbins);
+      m_specCount.fill (0, nbins);
+      m_specTx = false;
+    }
+  if (m_specPeriodStart < 0) return;  // joined part way through; wait for the next period
+  if (m_transmitting) m_specTx = true;
+  int const n = std::min (NSMAX, int (top_hz / m_df3));
+  for (int i = 0; i < n; ++i)
+    {
+      int const b = int (i * m_df3) / bin_hz;
+      m_specSum[b] += s[i];
+      ++m_specCount[b];
+    }
 }
 
 QString MainWindow::getTransmittedSymbols() const
