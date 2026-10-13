@@ -24,3 +24,6 @@ CMakeFiles
 fnd
 lib/77bit/tmp
 lib/tmp
+
+# ws-hunter build tree
+/build-hunter/
