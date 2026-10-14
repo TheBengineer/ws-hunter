@@ -580,6 +580,11 @@ void MessageClient::impl::parse_message (QByteArray const& msg)
               }
               break;
 
+            case NetworkMessage::ClearDX:
+              TRACE_UDP ("ClearDX");
+              if (control_for_us (in)) Q_EMIT self_->clear_dx ();
+              break;
+
             default:
               // Ignore
               //

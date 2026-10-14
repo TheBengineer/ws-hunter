@@ -997,7 +997,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (m_messageClient, &MessageClient::switch_configuration, m_multi_settings, &MultiSettings::select_configuration);
   connect (m_messageClient, &MessageClient::configure, this, &MainWindow::remote_configure);
 
-  // Station-control requests from a UDP controller (types 19-26, see
+  // Station-control requests from a UDP controller (types 19-26 and 28, see
   // NetworkMessage.hpp). Each goes through the same widget the operator
   // would use, then sends Status so the controller sees the result.
   connect (m_messageClient, &MessageClient::set_tx_period, [this] (bool tx_first) {
@@ -1032,6 +1032,10 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
     });
   connect (m_messageClient, &MessageClient::set_tx_enabled, [this] (bool enabled) {
       auto_tx_mode (enabled);           // calls statusUpdate()
+    });
+  connect (m_messageClient, &MessageClient::clear_dx, [this] {
+      clearDX ();                       // next message is Tx6, CQ
+      statusUpdate ();
     });
 
   // Hook up WSPR band hopping

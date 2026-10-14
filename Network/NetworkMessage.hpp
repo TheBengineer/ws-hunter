@@ -625,6 +625,14 @@
  *      Equivalent to clicking "Enable Tx" on or off. The state is reported
  *      as Tx Enabled in the next Status message.
  *
+ * ClearDX        In       28
+ *                         Id (target unique key) utf8
+ *
+ *      Equivalent to the "Clear DX" action: empties DX Call and the
+ *      standard messages for it and selects Tx6 (CQ) as the next message,
+ *      ready for Enable Tx to call CQ. Configure cannot do this because
+ *      it ignores an empty DX Call.
+ *
  * SpectrumSummary Out     27
  *                         Id (unique key)        utf8
  *                         Period start           QTime
@@ -685,6 +693,7 @@ namespace NetworkMessage
       SetHoldTxFreq = 25,       // In 25 — ws-hunter
       SetTxEnabled = 26,        // In 26 — ws-hunter
       SpectrumSummary = 27,     // Out 27 — ws-hunter
+      ClearDX = 28,             // In 28 — ws-hunter
       maximum_message_type_     // ONLY add new message types
                                 // immediately before here
     };
