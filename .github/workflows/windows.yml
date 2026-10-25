@@ -16,6 +16,8 @@ env:
   SUPER_URL: https://sourceforge.net/projects/wsjt-x-improved/files/WS_v3.2.0/Source%20code/ws-3.2.0_260924.tgz/download
   SUPER_MD5: 93069373277c7976eebbc4ec644bf79b
   HAMLIB: hamlib-4.7.3
+  OMNIRIG_URL: https://www.dxatlas.com/OmniRig/Files/OmniRig.zip
+  OMNIRIG_MD5: 6a43e3921b7c846b70a25c2f1b2668fd
 
 jobs:
   build:
@@ -49,7 +51,14 @@ jobs:
       - name: Check it
         run: echo "$SUPER_MD5  superbuild.tgz" | md5sum -c
 
+      - name: Hamlib build (cached)
+        id: hamlib
+        uses: actions/cache@v4
+        with:
+          path: hamlib
+          key: hamlib-${{ env.SUPER_MD5 }}-${{ hashFiles('.github/workflows/windows.yml') }}
       - name: Hamlib (static, WS's patch)
+        if: steps.hamlib.outputs.cache-hit != 'true'
         run: |
           mkdir superbuild
           tar xzf superbuild.tgz -C superbuild --strip-components=1 \
@@ -62,6 +71,14 @@ jobs:
               "CFLAGS=-O2 -fdata-sections -ffunction-sections -std=gnu17 -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types -Wno-error=int-conversion"
           make -j4
           make install-strip
+
+      - name: OmniRig (WS on Windows generates its rig interface from OmniRig's type library)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest $env:OMNIRIG_URL -OutFile OmniRig.zip
+          if ((Get-FileHash OmniRig.zip -Algorithm MD5).Hash -ne $env:OMNIRIG_MD5) { throw "OmniRig.zip: MD5 mismatch" }
+          Expand-Archive OmniRig.zip -DestinationPath omnirig
+          Start-Process omnirig/OmniRigSetup.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait
 
       - name: Configure
         run: |
