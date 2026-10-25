@@ -48,6 +48,12 @@ jobs:
       - name: Download superbuild tarball
         if: steps.super.outputs.cache-hit != 'true'
         run: curl -fL --retry 5 -o superbuild.tgz "$SUPER_URL"
+      - name: Keep the tarball
+        if: steps.super.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: superbuild.tgz
+          key: superbuild-${{ env.SUPER_MD5 }}
       - name: Check it
         run: echo "$SUPER_MD5  superbuild.tgz" | md5sum -c
 
@@ -76,7 +82,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: hamlib
-          key: ${{ steps.hamlib.outputs.cache-primary-key }}
+          key: hamlib-${{ env.SUPER_MD5 }}-ucrt64-gcc15-1
 
       - name: OmniRig (WS on Windows generates its rig interface from OmniRig's type library)
         shell: pwsh
@@ -93,7 +99,8 @@ jobs:
       - name: Configure
         run: |
           # MSYS2 names Qt 5's dumpcpp dumpcpp-qt5.exe
-          dumpcpp=$(ls /ucrt64/bin/dumpcpp-qt5.exe /ucrt64/bin/dumpcpp.exe 2>/dev/null | head -1)
+          dumpcpp=
+          for f in /ucrt64/bin/dumpcpp-qt5.exe /ucrt64/bin/dumpcpp.exe; do [ -f "$f" ] && dumpcpp=$f && break; done
           [ -n "$dumpcpp" ] || { echo "no dumpcpp in /ucrt64/bin"; exit 1; }
           echo "dumpcpp: $dumpcpp"
           cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release \
