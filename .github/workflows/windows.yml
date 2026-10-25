@@ -70,7 +70,7 @@ jobs:
             -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF
       - name: Build
         run: cmake --build build -j4
-      - name: Install (with WS's bundle fixup: Qt plugins and DLLs)
+      - name: "Install, with WS's bundle fixup (Qt plugins and DLLs)"
         run: cmake --install build
 
       - name: Any DLL still missing, from MinGW
