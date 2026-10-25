@@ -71,6 +71,12 @@ jobs:
               "CFLAGS=-O2 -fdata-sections -ffunction-sections -std=gnu17 -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types -Wno-error=int-conversion"
           make -j4
           make install-strip
+      - name: Keep the Hamlib build (even if a later step fails)
+        if: steps.hamlib.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: hamlib
+          key: ${{ steps.hamlib.outputs.cache-primary-key }}
 
       - name: OmniRig (WS on Windows generates its rig interface from OmniRig's type library)
         shell: pwsh
@@ -79,13 +85,18 @@ jobs:
           if ((Get-FileHash OmniRig.zip -Algorithm MD5).Hash -ne $env:OMNIRIG_MD5) { throw "OmniRig.zip: MD5 mismatch" }
           Expand-Archive OmniRig.zip -DestinationPath omnirig
           Start-Process omnirig/OmniRigSetup.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait
+          $exe = Get-ChildItem "${env:ProgramFiles(x86)}","$env:ProgramFiles" -Recurse -Filter OmniRig.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "OmniRig.exe not found after install" }
+          "OmniRig: $($exe.FullName)"
+          "OMNIRIG_EXE=$($exe.FullName -replace '\\','/')" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Configure
         run: |
           cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$(cygpath -m "$GITHUB_WORKSPACE/hamlib")" \
             -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$GITHUB_WORKSPACE/dist/ws-hunter")" \
-            -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF
+            -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF \
+            -DOMNIRIG_EXE="$OMNIRIG_EXE"
       - name: Build
         run: cmake --build build -j4
       - name: "Install, with WS's bundle fixup (Qt plugins and DLLs)"

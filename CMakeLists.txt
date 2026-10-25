@@ -1006,11 +1006,17 @@ if (WIN32)
   if (DUMPCPP-NOTFOUND)
     message (FATAL_ERROR "dumpcpp tool not found")
   endif (DUMPCPP-NOTFOUND)
-  execute_process (
-    COMMAND ${DUMPCPP} -getfile {4FE359C5-A58F-459D-BE95-CA559FB4F270}
-    OUTPUT_VARIABLE AXSERVER
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+  # -DOMNIRIG_EXE=<path to OmniRig.exe> skips the registry lookup (a 64-bit
+  # dumpcpp may not see the 32-bit OmniRig's type library registration)
+  if (OMNIRIG_EXE)
+    set (AXSERVER "${OMNIRIG_EXE}")
+  else ()
+    execute_process (
+      COMMAND ${DUMPCPP} -getfile {4FE359C5-A58F-459D-BE95-CA559FB4F270}
+      OUTPUT_VARIABLE AXSERVER
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+  endif ()
   string (STRIP "${AXSERVER}" AXSERVER)
   if (NOT AXSERVER)
     message (FATAL_ERROR "You need to install OmniRig on this computer")
