@@ -1,0 +1,109 @@
+# ws-hunter for Windows (x64), built with MSYS2 / MinGW-w64 and Qt 5: a zip
+# with ws.exe and everything it needs. A tag v* also makes a GitHub release.
+# Hamlib comes from the official WS superbuild tarball (patched, static),
+# as in build-hunter.sh.
+name: windows
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SUPER_URL: https://sourceforge.net/projects/wsjt-x-improved/files/WS_v3.2.0/Source%20code/ws-3.2.0_260924.tgz/download
+  SUPER_MD5: 93069373277c7976eebbc4ec644bf79b
+  HAMLIB: hamlib-4.7.3
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make patch tar curl zip autoconf automake libtool
+            mingw-w64-x86_64-toolchain mingw-w64-x86_64-gcc-fortran
+            mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-qt5-base mingw-w64-x86_64-qt5-multimedia mingw-w64-x86_64-qt5-serialport
+            mingw-w64-x86_64-qt5-tools mingw-w64-x86_64-qt5-websockets mingw-w64-x86_64-qt5-activeqt
+            mingw-w64-x86_64-fftw mingw-w64-x86_64-boost mingw-w64-x86_64-libusb mingw-w64-x86_64-portaudio
+
+      - name: Superbuild tarball (cached)
+        id: super
+        uses: actions/cache@v4
+        with:
+          path: superbuild.tgz
+          key: superbuild-${{ env.SUPER_MD5 }}
+      - name: Download superbuild tarball
+        if: steps.super.outputs.cache-hit != 'true'
+        run: curl -fL --retry 5 -o superbuild.tgz "$SUPER_URL"
+      - name: Check it
+        run: echo "$SUPER_MD5  superbuild.tgz" | md5sum -c
+
+      - name: Hamlib (static, WS's patch)
+        run: |
+          mkdir superbuild
+          tar xzf superbuild.tgz -C superbuild --strip-components=1 \
+              "ws-3.2.0/src/$HAMLIB.tar.gz" ws-3.2.0/hamlib.patch
+          tar xzf "superbuild/src/$HAMLIB.tar.gz"
+          cd "$HAMLIB"
+          patch -p1 -N < ../superbuild/hamlib.patch
+          ./configure --prefix="$GITHUB_WORKSPACE/hamlib" --disable-shared --enable-static \
+              --without-cxx-binding --disable-winradio "CFLAGS=-O2 -fdata-sections -ffunction-sections"
+          make -j4
+          make install-strip
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$(cygpath -m "$GITHUB_WORKSPACE/hamlib")" \
+            -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$GITHUB_WORKSPACE/dist/ws-hunter")" \
+            -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF
+      - name: Build
+        run: cmake --build build -j4
+      - name: Install (with WS's bundle fixup: Qt plugins and DLLs)
+        run: cmake --install build
+
+      - name: Any DLL still missing, from MinGW
+        run: |
+          cd dist/ws-hunter/bin
+          for i in 1 2 3; do  # DLLs can pull in more DLLs
+            for f in *.exe *.dll; do ldd "$f" 2>/dev/null; done | awk '/\/mingw64\/bin\//{print $3}' | sort -u |
+              while read -r d; do [ -f "$(basename "$d")" ] || cp -v "$d" .; done
+          done
+          ls
+
+      - name: Smoke test (starts, reports its version)
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/ws-hunter/bin/ws.exe -ArgumentList "--version" -PassThru -NoNewWindow
+          Start-Sleep 10
+          if (-not $p.HasExited) { "ws.exe still running after 10 s (fine: no --version on Windows)"; Stop-Process $p }
+          else { "exit code $($p.ExitCode)" ; if ($p.ExitCode -lt 0 -or $p.ExitCode -gt 1) { exit 1 } }
+
+      - name: Zip
+        run: |
+          cp README dist/ws-hunter/README-ws-hunter.txt
+          cd dist && zip -qr ../ws-hunter-windows-x64.zip ws-hunter
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ws-hunter-windows-x64
+          path: ws-hunter-windows-x64.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" ws-hunter-windows-x64.zip -R "$GITHUB_REPOSITORY" \
+            --title "ws-hunter $GITHUB_REF_NAME (Windows)" --generate-notes
