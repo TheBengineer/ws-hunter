@@ -92,11 +92,16 @@ jobs:
 
       - name: Configure
         run: |
+          # MSYS2 keeps Qt 5's tools (dumpcpp among them) off the PATH
+          dumpcpp=$(find /ucrt64 -iname dumpcpp.exe | head -1)
+          [ -n "$dumpcpp" ] || { echo "no dumpcpp.exe in /ucrt64"; exit 1; }
+          echo "dumpcpp: $dumpcpp"
           cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$(cygpath -m "$GITHUB_WORKSPACE/hamlib")" \
             -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$GITHUB_WORKSPACE/dist/ws-hunter")" \
             -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF \
-            -DOMNIRIG_EXE="$OMNIRIG_EXE"
+            -DOMNIRIG_EXE="$OMNIRIG_EXE" \
+            -DDUMPCPP="$(cygpath -m "$dumpcpp")" -DDUMPCPP_Executable="$(cygpath -m "$dumpcpp")"
       - name: Build
         run: cmake --build build -j4
       - name: "Install, with WS's bundle fixup (Qt plugins and DLLs)"
