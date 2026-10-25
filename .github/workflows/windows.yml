@@ -123,6 +123,13 @@ jobs:
           done
           ls
 
+      - name: Strip debug symbols (wsmap.exe alone is ~400 MB with them)
+        run: |
+          cd dist/ws-hunter/bin
+          du -sh .
+          strip --strip-debug *.exe
+          du -sh .
+
       - name: Smoke test (starts, reports its version)
         shell: pwsh
         run: |
