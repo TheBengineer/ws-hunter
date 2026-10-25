@@ -57,7 +57,7 @@ jobs:
           tar xzf "superbuild/src/$HAMLIB.tar.gz"
           cd "$HAMLIB"
           patch -p1 -N < ../superbuild/hamlib.patch
-          ./configure --prefix="$GITHUB_WORKSPACE/hamlib" --disable-shared --enable-static \
+          ./configure --prefix="$(cygpath -u "$GITHUB_WORKSPACE")/hamlib" --disable-shared --enable-static \
               --without-cxx-binding --disable-winradio \
               "CFLAGS=-O2 -fdata-sections -ffunction-sections -std=gnu17 -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types -Wno-error=int-conversion"
           make -j4
