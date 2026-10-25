@@ -1325,7 +1325,8 @@ endif ()
 if (WSJT_GENERATE_DOCS)
   add_subdirectory (doc)
 endif (WSJT_GENERATE_DOCS)
-if (EXISTS ${CMAKE_SOURCE_DIR}/tests AND IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
+option (WSJT_BUILD_TESTS "Build the test programs (some are Linux-only)" ON)
+if (WSJT_BUILD_TESTS AND EXISTS ${CMAKE_SOURCE_DIR}/tests AND IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
   # FORK-ONLY: Improved dropped enable_testing(), which mainline WSJT-X calls
   # here. Without it every add_test() in tests/ is a silent no-op -- the test
   # binaries build and pass when run by hand, but `ctest` reports "No tests

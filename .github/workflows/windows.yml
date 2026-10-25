@@ -106,7 +106,7 @@ jobs:
           cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$(cygpath -m "$GITHUB_WORKSPACE/hamlib")" \
             -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$GITHUB_WORKSPACE/dist/ws-hunter")" \
-            -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF \
+            -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF -DWSJT_BUILD_TESTS=OFF \
             -DOMNIRIG_EXE="$OMNIRIG_EXE" \
             -DDUMPCPP="$(cygpath -m "$dumpcpp")" -DDUMPCPP_Executable="$(cygpath -m "$dumpcpp")"
       - name: Build
