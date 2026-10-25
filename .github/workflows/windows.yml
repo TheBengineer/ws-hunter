@@ -92,9 +92,9 @@ jobs:
 
       - name: Configure
         run: |
-          # MSYS2 keeps Qt 5's tools (dumpcpp among them) off the PATH
-          dumpcpp=$(find /ucrt64 -iname dumpcpp.exe | head -1)
-          [ -n "$dumpcpp" ] || { echo "no dumpcpp.exe in /ucrt64"; exit 1; }
+          # MSYS2 names Qt 5's dumpcpp dumpcpp-qt5.exe
+          dumpcpp=$(ls /ucrt64/bin/dumpcpp-qt5.exe /ucrt64/bin/dumpcpp.exe 2>/dev/null | head -1)
+          [ -n "$dumpcpp" ] || { echo "no dumpcpp in /ucrt64/bin"; exit 1; }
           echo "dumpcpp: $dumpcpp"
           cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$(cygpath -m "$GITHUB_WORKSPACE/hamlib")" \
