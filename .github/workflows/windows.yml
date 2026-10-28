@@ -187,5 +187,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" ws-hunter-windows-x64-setup.exe ws-hunter-windows-x64.zip -R "$GITHUB_REPOSITORY" \
-            --title "ws-hunter $GITHUB_REF_NAME (Windows)" --generate-notes
+          # a re-run may find the release made: add only what it lacks, never replace
+          # (FT8 Hunter's build pins the SHA-256 of what's there)
+          if have=$(gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null); then
+            for f in ws-hunter-windows-x64-setup.exe ws-hunter-windows-x64.zip; do
+              if grep -qx "$f" <<< "$have"; then echo "$f: already there, kept"
+              else gh release upload "$GITHUB_REF_NAME" "$f" -R "$GITHUB_REPOSITORY"; fi
+            done
+          else
+            gh release create "$GITHUB_REF_NAME" ws-hunter-windows-x64-setup.exe ws-hunter-windows-x64.zip -R "$GITHUB_REPOSITORY" \
+              --title "ws-hunter $GITHUB_REF_NAME" --generate-notes
+          fi
