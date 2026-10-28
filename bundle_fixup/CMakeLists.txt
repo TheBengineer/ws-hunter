@@ -48,8 +48,10 @@ if (APPLE OR WIN32)
       PATTERN "*offscreen*${CMAKE_SHARED_LIBRARY_SUFFIX}" EXCLUDE
       PATTERN "*quick*${CMAKE_SHARED_LIBRARY_SUFFIX}" EXCLUDE
       PATTERN "*webgl*${CMAKE_SHARED_LIBRARY_SUFFIX}" EXCLUDE
-      # Homebrew's WebP links @rpath/libsharpyuv, which fixup_bundle can't resolve; WS needs no WebP
+      # Homebrew's WebP (also linked by its libtiff) needs @rpath/libsharpyuv, which
+      # fixup_bundle can't resolve; WS reads neither WebP nor TIFF
       PATTERN "*webp*${CMAKE_SHARED_LIBRARY_SUFFIX}" EXCLUDE
+      PATTERN "*tiff*${CMAKE_SHARED_LIBRARY_SUFFIX}" EXCLUDE
       PATTERN "*_debug${CMAKE_SHARED_LIBRARY_SUFFIX}" EXCLUDE
       PATTERN "*${CMAKE_SHARED_LIBRARY_SUFFIX}.dSYM" EXCLUDE
       )

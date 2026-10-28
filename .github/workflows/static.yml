@@ -88,7 +88,12 @@ jobs:
           # WS's default, 10.12, wsprd misses ___chkstk_darwin)
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           WS_CMAKE_ARGS: -DWSJT_BUILD_TESTS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
-        run: ./build-hunter.sh "$PWD/dist"
+        run: |
+          # what each Qt plugin links that isn't Qt or the system (fixup_bundle must resolve all of it)
+          for f in "$(brew --prefix qt@5)"/plugins/{platforms,audio,accessible,imageformats,styles,sqldrivers}/*.dylib; do
+            echo "$f: $(otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -v "^/System\|^/usr/lib\|Qt" | tr '\n' ' ')"
+          done
+          ./build-hunter.sh "$PWD/dist"
       - name: Self-contained (Homebrew libraries into the bundle), ad-hoc signed
         run: |
           app=dist/ws.app
