@@ -67,7 +67,10 @@ jobs:
           done
           ls
           cd "$GITHUB_WORKSPACE"
-          xvfb-run -a ./ws-hunter-linux-x64.AppImage --appimage-extract-and-run --version
+          # ws doesn't exit on --version: it must still be up after 20 s (timeout's 124), not crashed
+          s=0; timeout 20 xvfb-run -a ./ws-hunter-linux-x64.AppImage --appimage-extract-and-run || s=$?
+          [ "$s" = 124 ] || { echo "ws exited with $s"; exit 1; }
+          echo "ws ran for 20 s"
       - uses: actions/upload-artifact@v4
         with:
           name: ws-hunter-linux-x64
@@ -101,9 +104,13 @@ jobs:
           [ $bad = 0 ]
           codesign --force --deep --sign - "$app"
           du -sh "$app"
-      - name: "Smoke test: ws starts and reports its version"
+      - name: "Smoke test: ws starts and stays up"
         timeout-minutes: 3
-        run: dist/ws.app/Contents/MacOS/ws --version
+        run: |
+          dist/ws.app/Contents/MacOS/ws > ws.log 2>&1 &
+          sleep 20
+          kill -0 $! || { cat ws.log; echo "ws exited (crashed?)"; exit 1; }
+          kill $!; cat ws.log; echo "ws ran for 20 s"
       - name: Zip
         run: |
           cp README dist/README-ws-hunter.txt
