@@ -301,7 +301,7 @@ bool MainWindow::jtty_decode(int k, int istart0, int istop)
 
   bool const allHistoryChanged = Jtty::mergeMessageUpdates(
       m_jttyAllFreqLines, updates,
-      [this, &jttyLineDateTimeUtc, &jttyLineDisplayDateTimeUtc] (Jtty::MessageUpdate const& update) {
+      [&jttyLineDateTimeUtc, &jttyLineDisplayDateTimeUtc] (Jtty::MessageUpdate const& update) {
           JttyDecodeLine decodeLine;
           decodeLine.messageId = update.messageId;
           decodeLine.frequency = update.frequency;
