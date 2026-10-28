@@ -50,8 +50,10 @@ jobs:
             curl -fsSLO "https://github.com/linuxdeploy/$t"
           done
           chmod +x linuxdeploy*.AppImage
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir \
-            -d AppDir/usr/share/applications/ws.desktop -i AppDir/usr/share/pixmaps/ws_icon.png \
+          # the icon where linuxdeploy looks for the desktop file's Icon=ws_icon (128x128)
+          mkdir -p AppDir/usr/share/icons/hicolor/128x128/apps
+          mv AppDir/usr/share/pixmaps/ws_icon.png AppDir/usr/share/icons/hicolor/128x128/apps/
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir -d AppDir/usr/share/applications/ws.desktop \
             --plugin qt --output appimage
           ls -l "$OUTPUT"
       - name: "Smoke test: every program finds its libraries, ws starts"
@@ -77,6 +79,11 @@ jobs:
       - name: Tools and libraries
         run: brew install cmake qt@5 boost fftw libusb gcc pkg-config portaudio autoconf automake libtool dylibbundler
       - name: Build ws.app
+        env:
+          # 11.0, the first macOS on Apple silicon: gcc's runtime needs it (with
+          # WS's default, 10.12, wsprd misses ___chkstk_darwin)
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          WS_CMAKE_ARGS: -DWSJT_BUILD_TESTS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
         run: ./build-hunter.sh "$PWD/dist"
       - name: Self-contained (Homebrew libraries into the bundle), ad-hoc signed
         run: |
