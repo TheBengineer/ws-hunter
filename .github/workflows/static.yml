@@ -1,0 +1,122 @@
+# ws-hunter for Linux (an AppImage) and macOS (ws.app, Apple silicon), built
+# with build-hunter.sh and made self-contained. Run by hand (Actions → static →
+# Run workflow); with "upload" it adds both to an existing release (the one
+# with the Windows zip), which is where FT8 Hunter's build takes WS from.
+# A push that changes this file builds without uploading.
+name: static
+
+on:
+  push:
+    branches: ["**"]
+    paths: [".github/workflows/static.yml", "build-hunter.sh"]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release (tag) to add the downloads to"
+        default: v3.2.0-hunter.1
+      upload:
+        description: "Upload them"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  WS_CMAKE_ARGS: -DWSJT_BUILD_TESTS=OFF
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04  # glibc 2.35: runs on that and anything newer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools and libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential gfortran cmake autoconf automake libtool pkg-config texinfo \
+            qtbase5-dev qttools5-dev qttools5-dev-tools qtmultimedia5-dev libqt5serialport5-dev libqt5websockets5-dev \
+            libqt5sql5-sqlite libqt5multimedia5-plugins libboost-log-dev libfftw3-dev libusb-1.0-0-dev libudev-dev \
+            portaudio19-dev xvfb > /dev/null
+      - name: Build into AppDir/usr
+        run: ./build-hunter.sh "$PWD/AppDir/usr"
+      - name: AppImage (linuxdeploy, with Qt's plugins)
+        env:
+          QMAKE: /usr/lib/qt5/bin/qmake
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          OUTPUT: ws-hunter-linux-x64.AppImage
+        run: |
+          for t in linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
+                   linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage; do
+            curl -fsSLO "https://github.com/linuxdeploy/$t"
+          done
+          chmod +x linuxdeploy*.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir \
+            -d AppDir/usr/share/applications/ws.desktop -i AppDir/usr/share/pixmaps/ws_icon.png \
+            --plugin qt --output appimage
+          ls -l "$OUTPUT"
+      - name: "Smoke test: every program finds its libraries, ws starts"
+        timeout-minutes: 3
+        run: |
+          ./ws-hunter-linux-x64.AppImage --appimage-extract > /dev/null
+          cd squashfs-root/usr/bin
+          for f in *; do
+            if file "$f" | grep -q ELF && LD_LIBRARY_PATH=../lib ldd "$f" | grep "not found"; then echo "$f: missing libraries"; exit 1; fi
+          done
+          ls
+          cd "$GITHUB_WORKSPACE"
+          xvfb-run -a ./ws-hunter-linux-x64.AppImage --appimage-extract-and-run --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ws-hunter-linux-x64
+          path: ws-hunter-linux-x64.AppImage
+
+  macos:
+    runs-on: macos-14  # Apple silicon
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools and libraries
+        run: brew install cmake qt@5 boost fftw libusb gcc pkg-config portaudio autoconf automake libtool dylibbundler
+      - name: Build ws.app
+        run: ./build-hunter.sh "$PWD/dist"
+      - name: Self-contained (Homebrew libraries into the bundle), ad-hoc signed
+        run: |
+          app=dist/ws.app
+          libdir=$(dirname "$("$(ls "$(brew --prefix)"/bin/gfortran-* | sort -V | tail -1)" -print-file-name=libgfortran.5.dylib)")
+          bins=()
+          for f in "$app"/Contents/MacOS/*; do file "$f" | grep -q Mach-O && bins+=(-x "$f"); done
+          dylibbundler -cd -of -b "${bins[@]}" -d "$app/Contents/Frameworks" -p @executable_path/../Frameworks/ -s "$libdir"
+          # nothing may still point at Homebrew
+          bad=0
+          while read -r f; do
+            if otool -L "$f" | tail -n +2 | grep -E "$(brew --prefix)|/usr/local/"; then echo "^ in $f"; bad=1; fi
+          done < <(find "$app" -type f \( -perm +111 -o -name "*.dylib" \) -exec sh -c 'file "$1" | grep -q Mach-O && echo "$1"' _ {} \;)
+          [ $bad = 0 ]
+          codesign --force --deep --sign - "$app"
+          du -sh "$app"
+      - name: "Smoke test: ws starts and reports its version"
+        timeout-minutes: 3
+        run: dist/ws.app/Contents/MacOS/ws --version
+      - name: Zip
+        run: |
+          cp README dist/README-ws-hunter.txt
+          cd dist && ditto -c -k --keepParent ws.app ../ws-hunter-macos-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ws-hunter-macos-arm64
+          path: ws-hunter-macos-arm64.zip
+
+  upload:
+    needs: [linux, macos]
+    if: github.event_name == 'workflow_dispatch' && inputs.upload
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Add to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ inputs.release }}" assets/* -R "$GITHUB_REPOSITORY" --clobber
+          gh release edit "${{ inputs.release }}" -R "$GITHUB_REPOSITORY" --title "ws-hunter ${{ inputs.release }}"

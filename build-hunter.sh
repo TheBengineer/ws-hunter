@@ -11,6 +11,7 @@
 # WS links a patched static Hamlib that ships only inside the official
 # "superbuild" source tarball, so that tarball is downloaded once (MD5
 # pinned) and its Hamlib built first. Everything else comes from this tree.
+# More CMake options can come in WS_CMAKE_ARGS (CI: -DWSJT_BUILD_TESTS=OFF).
 # Run the result with <prefix>/bin/ws; it shares settings, logs and
 # ALL.TXT with the stock WS, so don't run both at once.
 set -euo pipefail
@@ -78,7 +79,7 @@ fi
 echo ">> building ws-hunter into $PREFIX"
 cmake -S "$SRC" -B ws -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_PREFIX_PATH="$BUILD/hamlib${EXTRA_PREFIX:+;$EXTRA_PREFIX}" -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-      -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF
+      -DWSJT_GENERATE_DOCS=OFF -DWSJT_SKIP_MANPAGES=ON -DWSJT_BUILD_UTILS=OFF ${WS_CMAKE_ARGS:-}
 cmake --build ws -j"$JOBS"
 cmake --install ws
 
