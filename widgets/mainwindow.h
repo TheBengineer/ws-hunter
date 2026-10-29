@@ -824,7 +824,7 @@ private:
   bool		m_btxok0;
   int			m_nsendingsh;
   double	m_onAirFreq0;
-  bool		m_first_error;
+  int		m_rig_retries;
   char    m_msg[100][80];
 
   // labels in status bar

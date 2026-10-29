@@ -558,7 +558,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   m_btxok0 {false},
   m_nsendingsh {0},
   m_onAirFreq0 {0.0},
-  m_first_error {true},
+  m_rig_retries {0},
   tx_status_label {tr ("Receiving")},
   fsWatcher {new QFileSystemWatcher {this}},
   wsprNet {new WSPRNet {&m_network_manager, this}},
@@ -14161,6 +14161,7 @@ void MainWindow::setFreq4(int rxFreq, int txFreq)
 void MainWindow::handle_transceiver_update (Transceiver::TransceiverState const& s)
 {
   Transceiver::TransceiverState old_state {m_rigState};
+  if (s.online ()) m_rig_retries = 0; // the rig answered
   //transmitDisplay (s.ptt ());
   if (s.ptt () // && !m_rigState.ptt ()
       ) { // safe to start audio
@@ -14297,11 +14298,13 @@ void MainWindow::handle_transceiver_failure (QString const& reason)
 
 void MainWindow::rigFailure (QString const& reason)
 {
-  if (m_first_error)
+  // Retry quietly (a burst of RF on the CAT cable garbles a reply now and
+  // then), waiting a little longer each time; ask only when the rig hasn't
+  // answered since
+  if (m_rig_retries < 3)
     {
-      // one automatic retry
-      QTimer::singleShot (0, this, SLOT (rigOpen ()));
-      m_first_error = false;
+      QTimer::singleShot (1000 << m_rig_retries, this, SLOT (rigOpen ()));
+      ++m_rig_retries;
     }
   else
     {
@@ -14341,7 +14344,7 @@ void MainWindow::rigFailure (QString const& reason)
             default: break;     // squashing compile warnings
             }
         }
-      m_first_error = true;     // reset
+      m_rig_retries = 0;        // reset
     }
 }
 
